@@ -1,6 +1,7 @@
 from src.llm.llm_factory import LLMFactory
 from src.utils.prompts import PromptTemplates
 from src.query.validator import SQLValidator
+from src.handlers.feedback_learning import FeedbackLearningSystem
 from typing import Optional
 
 class QueryGenerator:
@@ -10,9 +11,10 @@ class QueryGenerator:
         self.llm = LLMFactory.create_llm(model_name)
         self.validator = SQLValidator()
         self.prompt_templates = PromptTemplates()
+        self.learning_system = FeedbackLearningSystem()
     
     def generate(self, question: str, schema: str, use_few_shot: bool = False, 
-                 use_chain_of_thought: bool = False) -> str:
+                 use_chain_of_thought: bool = False, use_feedback_learning: bool = True) -> str:
         """
         Generate SQL query from question
         
@@ -21,6 +23,7 @@ class QueryGenerator:
             schema: Database schema as string
             use_few_shot: Use few-shot prompting
             use_chain_of_thought: Use chain-of-thought prompting
+            use_feedback_learning: Use learned examples from feedback
             
         Returns:
             Generated SQL query
@@ -40,6 +43,12 @@ class QueryGenerator:
             prompt = self.prompt_templates.SQL_GENERATION_PROMPT.format(
                 schema=schema,
                 question=question
+            )
+        
+        # Enhance with feedback learning if enabled and data is available
+        if use_feedback_learning and self.learning_system.feedback_handler.has_learning_data():
+            prompt = self.learning_system.enhance_prompt_with_feedback(
+                prompt, question, use_examples=True, use_corrections=True
             )
         
         sql_query = self.llm.invoke(prompt).strip()

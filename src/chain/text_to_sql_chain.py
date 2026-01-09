@@ -21,7 +21,8 @@ class TextToSQLChain:
         self.schema = self.db.get_schema()
     
     def run(self, question: str, max_retries: int = None, 
-            use_few_shot: bool = False, use_chain_of_thought: bool = False) -> Dict:
+            use_few_shot: bool = False, use_chain_of_thought: bool = False,
+            use_feedback_learning: bool = True) -> Dict:
         """
         Run the complete Text-To-SQL chain
         
@@ -30,6 +31,7 @@ class TextToSQLChain:
             max_retries: Maximum retry attempts (defaults to Settings.MAX_RETRIES)
             use_few_shot: Use few-shot prompting
             use_chain_of_thought: Use chain-of-thought prompting
+            use_feedback_learning: Use feedback learning (enabled by default)
             
         Returns:
             Dictionary with results including question, query, results, summary, errors
@@ -57,7 +59,8 @@ class TextToSQLChain:
                         question, 
                         self.schema,
                         use_few_shot=use_few_shot,
-                        use_chain_of_thought=use_chain_of_thought
+                        use_chain_of_thought=use_chain_of_thought,
+                        use_feedback_learning=use_feedback_learning
                     )
                 else:
                     # Regenerate with error feedback

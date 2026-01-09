@@ -13,7 +13,11 @@ A complete Text-To-SQL solution using LangChain and Ollama for local LLM executi
 - **Natural Language to SQL**: Convert natural language questions to SQL queries
 - **Multiple LLM Support**: Compare results across different Ollama models (llama3, mistral, codellama)
 - **Error Handling**: Automatic detection and correction of invalid SQL
-- **User Feedback Loop**: Thumbs up/down feedback mechanism
+- **Closed Feedback Loop**: Learn from user feedback to improve query generation over time
+  - Rate queries (1-5 scale)
+  - Provide corrected SQL for failed queries
+  - System automatically uses learned examples in future prompts
+  - View learning status and improvement suggestions
 - **Ambiguity Detection**: Handle unclear questions with clarification prompts
 - **Result Summarization**: Convert SQL results back to natural language
 - **Benchmark Testing**: Evaluate accuracy using Spider and Bird benchmarks
@@ -120,6 +124,15 @@ Edit `config/settings.py` to change:
 - "Show the top 5 highest paid employees"
 - "What is the average salary by department?"
 - "List all projects in the Engineering department"
+
+## Feedback Loop System
+
+The application implements a **closed feedback loop** that improves query generation over time:
+
+1. **Provide Feedback**: Rate queries and optionally provide corrected SQL
+2. **System Learns**: Positive examples and corrections are stored
+3. **Improved Queries**: Future queries automatically use learned examples
+4. **Monitor Progress**: View learning status with `learning` command (CLI) or Learning System tab (Web)
 
 ## License
 

@@ -2,6 +2,7 @@ import gradio as gr
 from src.chain.text_to_sql_chain import TextToSQLChain
 from src.handlers.ambiguity_handler import AmbiguityHandler
 from src.handlers.feedback_handler import FeedbackHandler
+from src.handlers.feedback_learning import FeedbackLearningSystem
 from src.llm.llm_comparator import LLMComparator
 from config.settings import Settings
 import pandas as pd
@@ -13,6 +14,7 @@ class WebInterface:
         self.chain = TextToSQLChain(model_name=model_name)
         self.ambiguity_handler = AmbiguityHandler(model_name)
         self.feedback_handler = FeedbackHandler()
+        self.learning_system = FeedbackLearningSystem(self.feedback_handler)
         self.comparator = LLMComparator()
     
     def process_question(self, question: str, use_few_shot: bool, use_cot: bool):
@@ -55,13 +57,19 @@ class WebInterface:
         except Exception as e:
             return f"❌ Error: {str(e)}", "", "", None
     
-    def submit_feedback(self, question: str, sql_query: str, rating: int, comment: str):
-        """Submit user feedback"""
+    def submit_feedback(self, question: str, sql_query: str, rating: int, comment: str, corrected_query: str):
+        """Submit user feedback with optional correction"""
         if not question or not sql_query:
             return "⚠️ No query to provide feedback on."
         
         try:
-            self.feedback_handler.add_feedback(question, sql_query, rating, comment)
+            feedback_id = self.feedback_handler.add_feedback(question, sql_query, rating, comment)
+            
+            # If correction provided, save it
+            if corrected_query and corrected_query.strip() and rating <= 2:
+                self.feedback_handler.add_correction(feedback_id, sql_query, corrected_query.strip())
+                return "✅ Thank you for your feedback and correction! This will help improve future queries."
+            
             return "✅ Thank you for your feedback!"
         except Exception as e:
             return f"❌ Error submitting feedback: {str(e)}"
@@ -109,6 +117,26 @@ class WebInterface:
         except Exception as e:
             return f"❌ Error getting stats: {str(e)}"
     
+    def get_learning_status(self):
+        """Get learning system status"""
+        try:
+            status = self.learning_system.get_learning_status()
+            
+            status_text = "# Learning System Status\n\n"
+            status_text += f"- **Learning Data Available:** {'Yes ✅' if status['has_learning_data'] else 'No ❌'}\n"
+            status_text += f"- **Positive Examples:** {status['positive_examples']}\n"
+            status_text += f"- **Corrections:** {status['corrections']}\n"
+            status_text += f"- **Total Feedback:** {status['total_feedback']}\n"
+            status_text += f"- **Average Rating:** {status['average_rating']}/5\n\n"
+            
+            status_text += "## Improvement Suggestions\n\n"
+            for suggestion in self.learning_system.suggest_improvement_areas():
+                status_text += f"- {suggestion}\n"
+            
+            return status_text
+        except Exception as e:
+            return f"❌ Error getting learning status: {str(e)}"
+    
     def get_schema_info(self):
         """Get database schema information"""
         return self.chain.schema
@@ -116,7 +144,7 @@ class WebInterface:
     def launch(self, share: bool = False):
         """Launch Gradio interface"""
         
-        with gr.Blocks(title="Text-To-SQL with Ollama", theme=gr.themes.Soft()) as demo:
+        with gr.Blocks(title="Text-To-SQL with Ollama") as demo:
             gr.Markdown("# 🤖 Text-To-SQL Application")
             gr.Markdown("Convert natural language questions to SQL queries using local Ollama LLMs")
             
@@ -155,6 +183,12 @@ class WebInterface:
                     )
                     comment_input = gr.Textbox(label="Comment (Optional)", placeholder="Any comments?")
                 
+                corrected_query_input = gr.Textbox(
+                    label="Corrected SQL Query (Optional - provide if rating ≤ 2)",
+                    placeholder="If the query was wrong, provide the correct SQL here...",
+                    lines=2
+                )
+                
                 feedback_btn = gr.Button("Submit Feedback")
                 feedback_output = gr.Textbox(label="Feedback Status")
                 
@@ -166,7 +200,7 @@ class WebInterface:
                 
                 feedback_btn.click(
                     fn=self.submit_feedback,
-                    inputs=[question_input, sql_output, rating_slider, comment_input],
+                    inputs=[question_input, sql_output, rating_slider, comment_input, corrected_query_input],
                     outputs=feedback_output
                 )
             
@@ -198,6 +232,19 @@ class WebInterface:
                     fn=self.get_feedback_stats,
                     inputs=[],
                     outputs=stats_output
+                )
+            
+            with gr.Tab("Learning System"):
+                gr.Markdown("### Feedback Learning System")
+                gr.Markdown("The system learns from your feedback to improve query generation over time.")
+                
+                learning_btn = gr.Button("Refresh Learning Status", variant="primary")
+                learning_output = gr.Markdown(value=self.get_learning_status())
+                
+                learning_btn.click(
+                    fn=self.get_learning_status,
+                    inputs=[],
+                    outputs=learning_output
                 )
             
             with gr.Tab("About"):
@@ -233,7 +280,8 @@ class WebInterface:
         demo.launch(
             server_port=Settings.WEB_PORT,
             share=share,
-            server_name="0.0.0.0"
+            server_name="0.0.0.0",
+            theme=gr.themes.Soft()
         )
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ from typing import Optional
 from src.chain.text_to_sql_chain import TextToSQLChain
 from src.handlers.ambiguity_handler import AmbiguityHandler
 from src.handlers.feedback_handler import FeedbackHandler
+from src.handlers.feedback_learning import FeedbackLearningSystem
 from src.llm.llm_comparator import LLMComparator
 
 class CLI:
@@ -12,6 +13,7 @@ class CLI:
         self.chain = TextToSQLChain(model_name=model_name)
         self.ambiguity_handler = AmbiguityHandler(model_name)
         self.feedback_handler = FeedbackHandler()
+        self.learning_system = FeedbackLearningSystem(self.feedback_handler)
         self.comparator = LLMComparator()
     
     def print_header(self):
@@ -64,7 +66,7 @@ class CLI:
         
         print("=" * 70)
     
-    def get_feedback(self, question: str, sql_query: str):
+    def get_feedback(self, question: str, sql_query: str) -> Optional[int]:
         """Get user feedback on query"""
         print("\n📝 Was this result helpful?")
         print("   1 - Thumbs down (not helpful)")
@@ -74,18 +76,35 @@ class CLI:
         feedback = input("\nYour rating (1-5 or s): ").strip().lower()
         
         if feedback == 's':
-            return
+            return None
         
         try:
             rating = int(feedback)
             if 1 <= rating <= 5:
                 comment = input("Optional comment: ").strip() or None
-                self.feedback_handler.add_feedback(question, sql_query, rating, comment)
+                feedback_id = self.feedback_handler.add_feedback(question, sql_query, rating, comment)
                 print("✅ Thank you for your feedback!")
+                
+                # If low rating, offer to provide correction
+                if rating <= 2:
+                    print("\n🔧 Would you like to provide a corrected SQL query?")
+                    provide_correction = input("   (y/n): ").strip().lower()
+                    
+                    if provide_correction == 'y':
+                        print("\n   Enter the correct SQL query (or press Enter to skip):")
+                        corrected_query = input("   SQL> ").strip()
+                        
+                        if corrected_query:
+                            self.feedback_handler.add_correction(feedback_id, sql_query, corrected_query)
+                            print("✅ Correction saved! This will help improve future queries.")
+                
+                return rating
             else:
                 print("Invalid rating. Skipping feedback.")
+                return None
         except ValueError:
             print("Invalid input. Skipping feedback.")
+            return None
     
     def compare_models_mode(self):
         """Compare different models"""
@@ -123,8 +142,13 @@ class CLI:
         print("  - Type your question to generate SQL")
         print("  - Type 'compare' to compare models")
         print("  - Type 'stats' to see feedback statistics")
+        print("  - Type 'learning' to see learning system status")
         print("  - Type 'quit' or 'exit' to quit")
         print()
+        
+        # Show learning status if data is available
+        if self.learning_system.feedback_handler.has_learning_data():
+            print("✨ Feedback learning is enabled! Using learned examples to improve queries.\n")
         
         while True:
             try:
@@ -149,6 +173,21 @@ class CLI:
                     print(f"   Average Rating: {stats['average_rating']}/5")
                     print(f"   Positive Feedback: {stats['positive_feedback']}")
                     print(f"   Total Corrections: {stats['total_corrections']}")
+                    print("-" * 70)
+                    continue
+                
+                if question.lower() == 'learning':
+                    status = self.learning_system.get_learning_status()
+                    print("\n🎓 LEARNING SYSTEM STATUS")
+                    print("-" * 70)
+                    print(f"   Learning Data Available: {'Yes ✅' if status['has_learning_data'] else 'No ❌'}")
+                    print(f"   Positive Examples: {status['positive_examples']}")
+                    print(f"   Corrections: {status['corrections']}")
+                    print(f"   Total Feedback: {status['total_feedback']}")
+                    print(f"   Average Rating: {status['average_rating']}/5")
+                    print("\n   Improvement Suggestions:")
+                    for suggestion in self.learning_system.suggest_improvement_areas():
+                        print(f"   • {suggestion}")
                     print("-" * 70)
                     continue
                 

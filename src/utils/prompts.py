@@ -83,3 +83,16 @@ First, let's break down what we need to do:
 5. Think about aggregations or sorting
 
 Now generate the SQL query. Return ONLY the final SQL query."""
+
+    FEEDBACK_ENHANCED_PROMPT = """You are a SQL expert. Learn from previous successful queries and common mistakes.
+
+Database Schema:
+{schema}
+
+{feedback_examples}
+
+{feedback_corrections}
+
+Question: {question}
+
+Generate a SQL query following best practices from the examples above. Return ONLY the SQL query."""

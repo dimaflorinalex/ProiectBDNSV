@@ -40,6 +40,7 @@ Commands in CLI:
 - Type your question to generate SQL
 - Type `compare` to compare models
 - Type `stats` to see feedback statistics
+- Type `learning` to see learning system status
 - Type `quit` or `exit` to quit
 
 ### 2. CLI Interface (Single Query)
@@ -113,13 +114,20 @@ Note: You need to download Spider and BIRD datasets separately.
 ✅ Natural language to SQL conversion
 ✅ Multi-LLM comparison (llama3, mistral, codellama)
 ✅ Error detection and automatic correction
-✅ User feedback loop (thumbs up/down)
+✅ Closed feedback loop with learning system
+  - Rate queries (1-5 scale)
+  - Provide corrected SQL queries
+  - System learns from positive examples
+  - Learns from user corrections
+  - Automatic prompt enhancement
 ✅ Ambiguity detection and clarification
 ✅ Result summarization in natural language
 ✅ Few-shot prompting
 ✅ Chain-of-thought prompting
-✅ CLI interface
-✅ Web interface (Gradio)
+✅ CLI interface with feedback collection
+✅ Web interface (Gradio) with correction input
 ✅ Spider benchmark support
 ✅ BIRD benchmark support
 ✅ Complete test suite
+✅ Learning status monitoring
+
