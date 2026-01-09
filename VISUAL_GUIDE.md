@@ -3,16 +3,16 @@
 ## System Architecture
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│                      USER INTERFACES                      │
-│  ┌─────────────────────┐         ┌─────────────────────┐  │
-│  │   CLI Interface     │         │   Web Interface     │  │
-│  │  - Rate queries     │         │  - Rating slider    │  │
-│  │  - Provide comments │         │  - Comment field    │  │
-│  │  - Submit corrections│        │  - Correction input │  │
-│  │  - View learning    │         │  - Learning tab     │  │
-│  └──────────┬──────────┘         └──────────┬──────────┘  │
-└─────────────┼────────────────────────────────┼────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      USER INTERFACES                        │
+│  ┌───────────────────────┐         ┌─────────────────────┐  │
+│  │   CLI Interface       │         │   Web Interface     │  │
+│  │  - Rate queries       │         │  - Rating slider    │  │
+│  │  - Provide comments   │         │  - Comment field    │  │
+│  │  - Submit corrections │         │  - Correction input │  │
+│  │  - View learning      │         │  - Learning tab     │  │
+│  └──────────┬────────────┘         └──────────┬──────────┘  │
+└─────────────┼────────────────────────────────┼──────────────┘
               │                                │
               └────────────────┬───────────────┘
                                ↓
