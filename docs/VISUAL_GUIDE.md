@@ -2,6 +2,53 @@
 
 ## System Architecture
 
+### Mermaid Diagram
+
+```mermaid
+graph TB
+    subgraph UI["USER INTERFACES"]
+        CLI["CLI Interface<br/>- Rate queries<br/>- Provide comments<br/>- Submit corrections<br/>- View learning"]
+        WEB["Web Interface<br/>- Rating slider<br/>- Comment field<br/>- Correction input<br/>- Learning tab"]
+    end
+    
+    subgraph FB["FEEDBACK COLLECTION"]
+        FBH["FeedbackHandler<br/>- add_feedback()<br/>- add_correction()<br/>- get_positive_examples()<br/>- get_similar_queries()<br/>- get_corrected_examples()"]
+    end
+    
+    subgraph DB["PERSISTENT STORAGE"]
+        SQLDB["SQLite Database<br/>data/feedback.db<br/><br/>feedback table<br/>corrections table"]
+    end
+    
+    subgraph LS["LEARNING SYSTEM"]
+        FLS["FeedbackLearningSystem<br/>1. Analyze feedback<br/>2. Extract examples<br/>3. Find similar queries<br/>4. Retrieve corrections<br/>5. Build enhanced prompts"]
+    end
+    
+    subgraph QG["QUERY GENERATION"]
+        GEN["QueryGenerator<br/>Base Prompt +<br/>Learned Examples +<br/>Correction Guidance<br/>↓<br/>Enhanced Prompt → LLM"]
+    end
+    
+    subgraph EX["EXECUTION"]
+        EXEC["Execute SQL<br/>Get Results<br/>Summarize"]
+    end
+    
+    CLI --> FBH
+    WEB --> FBH
+    FBH --> SQLDB
+    SQLDB --> FLS
+    FLS --> GEN
+    GEN --> EXEC
+    EXEC -.Loop back.-> UI
+    
+    style UI fill:#e1f5ff
+    style FB fill:#fff3e0
+    style DB fill:#f3e5f5
+    style LS fill:#e8f5e9
+    style QG fill:#fff9c4
+    style EX fill:#fce4ec
+```
+
+### Text Diagram
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      USER INTERFACES                        │
@@ -86,6 +133,36 @@
 
 ## Data Flow: User Feedback to Improved Queries
 
+### Mermaid Diagram
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant System
+    participant DB as Database
+    participant Learning as Learning System
+    
+    Note over User,System: Step 1: User Interaction
+    User->>System: "How many employees?"
+    System->>User: SELECT COUNT(*) FROM employees
+    User->>System: ⭐⭐⭐⭐⭐ (5 stars) "Perfect!"
+    
+    Note over System,DB: Step 2: Storage
+    System->>DB: Store feedback<br/>question, query, rating=5
+    
+    Note over User,Learning: Step 3: Next Query (Learning)
+    User->>System: "How many departments?"
+    System->>Learning: Find similar queries
+    Learning->>DB: Get examples with "how many"
+    DB->>Learning: Return COUNT(*) examples
+    Learning->>System: Enhanced prompt with examples
+    
+    Note over System,User: Step 4: Better Result
+    System->>User: SELECT COUNT(*) FROM departments<br/>✅ Correct (learned from example)
+```
+
+### Text Diagram
+
 ```
 Step 1: User Interaction
 ┌───────────────────────────────────────────┐
@@ -128,6 +205,29 @@ Step 4: Better Result
 
 ## Correction Flow
 
+### Mermaid Diagram
+
+```mermaid
+flowchart TD
+    A[User Question:<br/>Average salary?] --> B[System Generates:<br/>SELECT AVG salary emp]
+    B --> C{Execute Query}
+    C -->|Syntax Error| D[❌ Error Result]
+    D --> E[User rates: ⭐ 1 star]
+    E --> F[User provides correction:<br/>SELECT AVG salary<br/>FROM employees]
+    F --> G[Store correction in DB]
+    G --> H[Next similar query]
+    H --> I[Enhanced prompt includes:<br/>Common mistake:<br/>Wrong: SELECT AVG salary emp<br/>Right: SELECT AVG salary FROM emp]
+    I --> J[✅ Generate correct query]
+    
+    style D fill:#ffcdd2
+    style E fill:#ffcdd2
+    style F fill:#fff9c4
+    style G fill:#c8e6c9
+    style J fill:#c8e6c9
+```
+
+### Text Diagram
+
 ```
 User provides wrong query correction:
 
@@ -160,6 +260,38 @@ Next similar query:
 
 ## Learning Activation Logic
 
+### Mermaid Diagram
+
+```mermaid
+flowchart TD
+    Start([Query Comes In]) --> Check{Check has_learning_data}
+    Check -->|Has Data| Enhance[Enhance Prompt with Feedback]
+    Check -->|No Data| Standard[Use Standard Prompt]
+    
+    Enhance --> Generate[Generate Query]
+    Standard --> Generate
+    
+    subgraph "has_learning_data() Logic"
+        direction TB
+        H1[Check positive examples<br/>rating >= 4] --> H2{Count >= 3?}
+        H2 -->|Yes| Return1[Return True]
+        H2 -->|No| H3[Check corrections<br/>rating <= 2 AND corrected]
+        H3 --> H4{Count >= 1?}
+        H4 -->|Yes| Return2[Return True]
+        H4 -->|No| Return3[Return False]
+    end
+    
+    Check -.-> H1
+    
+    style Return1 fill:#c8e6c9
+    style Return2 fill:#c8e6c9
+    style Return3 fill:#ffcdd2
+    style Enhance fill:#bbdefb
+    style Standard fill:#f5f5f5
+```
+
+### Text Diagram
+
 ```
 ┌─────────────────────────────────────────┐
 │ Check: has_learning_data()              │
@@ -187,6 +319,57 @@ Next similar query:
 ```
 
 ## UI Components
+
+### Mermaid Diagram - CLI Flow
+
+```mermaid
+flowchart LR
+    A[User Query Input] --> B[Generate SQL]
+    B --> C[Execute Query]
+    C --> D[Display Results]
+    D --> E{Rating Prompt}
+    E -->|⭐ 1-2| F[Correction Input:<br/>Enter correct SQL]
+    E -->|⭐ 3-5| G[Thanks!]
+    F --> H[(Store Correction)]
+    G --> I[(Store Rating)]
+    
+    style F fill:#fff9c4
+    style H fill:#c8e6c9
+    style I fill:#c8e6c9
+```
+
+### Mermaid Diagram - Web Interface Layout
+
+```mermaid
+graph TB
+    subgraph "Query Tab"
+        W1[Question Input]
+        W2[Generate Button]
+        W3[Results Display]
+        W4[Rating 1-5 ⭐]
+        W5[Correction Input<br/>If rating ≤ 2]
+        W6[Submit Feedback Button]
+        
+        W1 --> W2 --> W3
+        W3 --> W4 --> W5 --> W6
+    end
+    
+    subgraph "Learning System Tab"
+        L1[Status Display:<br/>✅ Active / ⚠️ Inactive]
+        L2[Positive Examples: X]
+        L3[Corrections: Y]
+        L4[Recent Improvements List]
+        L5[Refresh Button]
+        
+        L1 --- L2 --- L3 --- L4 --- L5
+    end
+    
+    style W5 fill:#fff9c4
+    style L1 fill:#bbdefb
+    style L4 fill:#c8e6c9
+```
+
+### Text Mockups
 
 ### CLI Commands:
 ```
