@@ -20,7 +20,7 @@ A complete Text-To-SQL solution using LangChain and Ollama for local LLM executi
   - View learning status and improvement suggestions
 - **Ambiguity Detection**: Handle unclear questions with clarification prompts
 - **Result Summarization**: Convert SQL results back to natural language
-- **Benchmark Testing**: Evaluate accuracy using Spider and Bird benchmarks
+- **Benchmark Testing**: Evaluate accuracy using Spider benchmarks
 - **Dual Interface**: Both CLI and Web UI (Gradio) interfaces
 
 ## Prerequisites
@@ -104,7 +104,6 @@ ProiectBDNSV/
 │   └── settings.py             # Configuration
 ├── benchmarks/                 # Benchmark tests
 │   ├── spider_benchmark.py
-│   └── bird_benchmark.py
 ├── tests/                      # Unit tests
 ├── data/                       # Sample database
 └── requirements.txt

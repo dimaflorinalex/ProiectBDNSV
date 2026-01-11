@@ -79,10 +79,9 @@ Try these questions:
 
 ```bash
 python benchmarks/spider_benchmark.py
-python benchmarks/bird_benchmark.py
 ```
 
-Note: You need to download Spider and BIRD datasets separately.
+Note: You need to download the Spider dataset separately.
 
 ## Project Structure
 
@@ -127,7 +126,6 @@ Note: You need to download Spider and BIRD datasets separately.
 ✅ CLI interface with feedback collection
 ✅ Web interface (Gradio) with correction input
 ✅ Spider benchmark support
-✅ BIRD benchmark support
 ✅ Complete test suite
 ✅ Learning status monitoring
 

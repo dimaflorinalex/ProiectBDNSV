@@ -78,7 +78,6 @@ models/
 
 # Benchmark data (if large)
 data/benchmarks/spider/
-data/benchmarks/bird/
 
 # Temporary files
 *.tmp

@@ -2,4 +2,4 @@
 # This directory will contain:
 # - sample_database.db (created automatically)
 # - feedback.db (created automatically)
-# - benchmarks/ (download Spider and BIRD datasets here)
+# - benchmarks/ (download Spider dataset here)

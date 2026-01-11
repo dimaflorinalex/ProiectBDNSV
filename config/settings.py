@@ -31,7 +31,6 @@ class Settings:
     
     # Benchmark paths
     SPIDER_DATA_PATH = "data/benchmarks/spider"
-    BIRD_DATA_PATH = "data/benchmarks/bird"
     
     # Maximum retries for SQL generation
     MAX_RETRIES = 2
