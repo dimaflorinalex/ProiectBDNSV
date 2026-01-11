@@ -27,6 +27,7 @@ class SpiderBenchmark:
         self.data_path = data_path
         self.model_name = model_name
         self.results = []
+        self.db_base_path = os.path.join(data_path, "spider_data", "spider_data", "database")
     
     def load_dataset(self, split: str = "dev") -> List[Dict]:
         """
@@ -61,11 +62,17 @@ class SpiderBenchmark:
         """Check if predicted SQL exactly matches gold SQL"""
         return self.normalize_sql(predicted) == self.normalize_sql(gold)
     
-    def execution_match(self, predicted: str, gold: str, db_connection: DatabaseConnection) -> bool:
+    def execution_match(self, predicted: str, gold: str, db_path: str) -> bool:
         """Check if predicted SQL produces same results as gold SQL"""
         try:
-            pred_result, pred_error = db_connection.execute_query(predicted)
-            gold_result, gold_error = db_connection.execute_query(gold)
+            # Create connection to specific database
+            db_conn = DatabaseConnection(db_path)
+            db_conn.connect()
+            
+            pred_result, pred_error = db_conn.execute_query(predicted)
+            gold_result, gold_error = db_conn.execute_query(gold)
+            
+            db_conn.disconnect()
             
             if pred_error or gold_error:
                 return False
@@ -80,7 +87,8 @@ class SpiderBenchmark:
             
             return pred_rows_sorted == gold_rows_sorted
             
-        except Exception:
+        except Exception as e:
+            print(f"    Execution error: {str(e)}")
             return False
     
     def run_benchmark(self, max_samples: int = 10) -> Dict:
@@ -121,14 +129,20 @@ class SpiderBenchmark:
             gold_sql = example.get("query", "")
             db_id = example.get("db_id", "")
             
-            print(f"[{idx+1}/{total}] {question[:50]}...")
+            # Get database path
+            db_path = os.path.join(self.db_base_path, db_id, f"{db_id}.sqlite")
             
-            # Create a temporary database connection for this example
-            # Note: In a real Spider evaluation, you'd connect to the specific database
-            # For now, we'll use our sample database
+            print(f"[{idx+1}/{total}] DB: {db_id}")
+            print(f"  Q: {question[:70]}...")
+            
+            # Check if database exists
+            if not os.path.exists(db_path):
+                print(f"  ⚠️ Database not found: {db_path}")
+                continue
             
             try:
-                chain = TextToSQLChain(model_name=self.model_name)
+                # Use the specific database for this example
+                chain = TextToSQLChain(db_path=db_path, model_name=self.model_name)
                 result = chain.run(question)
                 
                 if result["sql_query"]:
@@ -140,9 +154,11 @@ class SpiderBenchmark:
                         print("  ✅ Exact match")
                     else:
                         print("  ❌ No exact match")
+                        print(f"    Predicted: {predicted_sql[:100]}...")
+                        print(f"    Gold: {gold_sql[:100]}...")
                     
                     # Execution match
-                    if self.execution_match(predicted_sql, gold_sql, chain.db):
+                    if self.execution_match(predicted_sql, gold_sql, db_path):
                         execution_matches += 1
                         print("  ✅ Execution match")
                     else:
@@ -180,5 +196,13 @@ class SpiderBenchmark:
         return results
 
 if __name__ == "__main__":
-    benchmark = SpiderBenchmark()
-    results = benchmark.run_benchmark(max_samples=5)
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Run Spider benchmark evaluation')
+    parser.add_argument('--samples', type=int, default=10, help='Number of samples to evaluate (default: 10)')
+    parser.add_argument('--model', type=str, default=None, help='Model name to use (default: llama3)')
+    
+    args = parser.parse_args()
+    
+    benchmark = SpiderBenchmark(model_name=args.model)
+    results = benchmark.run_benchmark(max_samples=args.samples)
