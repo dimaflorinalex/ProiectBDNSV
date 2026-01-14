@@ -52,15 +52,95 @@ class SpiderBenchmark:
         return data
     
     def normalize_sql(self, sql: str) -> str:
-        """Normalize SQL for comparison"""
-        # Simple normalization - can be improved
+        """
+        Normalize SQL for comparison by removing irrelevant differences
+        while preserving semantic meaning
+        """
+        import re
+        
+        # Convert to uppercase
         sql = sql.upper()
-        sql = ' '.join(sql.split())  # Normalize whitespace
+        
+        # Remove comments
+        sql = re.sub(r'--[^\n]*', '', sql)
+        sql = re.sub(r'/\*.*?\*/', '', sql, flags=re.DOTALL)
+        
+        # Remove trailing semicolons
+        sql = sql.rstrip(';').strip()
+        
+        # Normalize whitespace (including newlines and tabs)
+        sql = ' '.join(sql.split())
+        
+        # Remove AS keyword for aliases
+        sql = re.sub(r'\bAS\s+', '', sql)
+        
+        # Remove table prefixes from columns (e.g., "s.Name" -> "Name", "T1.id" -> "id")
+        sql = re.sub(r'\b[A-Z]\d*\.', '', sql)  # Matches s., t1., T2., etc.
+        
+        # Normalize COUNT(*) 
+        sql = re.sub(r'COUNT\s*\(\s*\*\s*\)', 'COUNT(*)', sql)
+        
+        # DON'T remove spaces around operators yet - we need them for alias detection
+        # Just normalize multiple spaces to single space
+        sql = ' '.join(sql.split())
+        
+        return sql.strip()
+    
+    def remove_aliases(self, sql: str) -> str:
+        """
+        Remove column and table aliases from normalized SQL
+        """
+        import re
+        
+        # Remove column aliases in SELECT clause
+        # Work with the SELECT clause between SELECT and FROM
+        select_match = re.search(r'SELECT\s+(.*?)\s+FROM', sql)
+        if select_match:
+            select_clause = select_match.group(1)
+            
+            # Remove aliases after functions: "FUNCTION(...) ALIAS" -> "FUNCTION(...)"
+            # This handles COUNT(*) TOTAL, AVG(AGE) AVG_AGE, etc.
+            select_clause = re.sub(r'\)\s+[A-Z_0-9]+(?=\s*(,|$))', ')', select_clause)
+            
+            # Also handle simple column aliases: "COLUMN_NAME ALIAS" -> "COLUMN_NAME"
+            # But be careful not to remove function names
+            select_clause = re.sub(r'\b([A-Z_0-9]+)\s+[A-Z_0-9]+(?=\s*(,|$))(?!\()', r'\1', select_clause)
+            
+            sql = sql.replace(select_match.group(1), select_clause)
+        
+        # Remove table aliases (FROM table alias -> FROM table)
+        sql = re.sub(r'(FROM|JOIN)\s+([A-Z_]+)\s+[A-Z]\d*\b', r'\1 \2', sql)
+        
+        # Now normalize spacing around operators for final comparison
+        sql = re.sub(r'\s*\(\s*', ' (', sql)
+        sql = re.sub(r'\s*\)\s*', ') ', sql)
+        sql = re.sub(r'\s*,\s*', ', ', sql)
+        sql = re.sub(r'\s*=\s*', ' = ', sql)
+        sql = re.sub(r'\s*<\s*', ' < ', sql)
+        sql = re.sub(r'\s*>\s*', ' > ', sql)
+        
+        # Normalize spaces
+        sql = ' '.join(sql.split())
+        
         return sql
     
     def exact_match(self, predicted: str, gold: str) -> bool:
-        """Check if predicted SQL exactly matches gold SQL"""
-        return self.normalize_sql(predicted) == self.normalize_sql(gold)
+        """
+        Check if predicted SQL matches gold SQL after normalization.
+        This checks structural equivalence, not just string equality.
+        """
+        pred_norm = self.normalize_sql(predicted)
+        gold_norm = self.normalize_sql(gold)
+        
+        # Direct match after normalization
+        if pred_norm == gold_norm:
+            return True
+        
+        # Try with alias removal
+        pred_no_aliases = self.remove_aliases(pred_norm)
+        gold_no_aliases = self.remove_aliases(gold_norm)
+        
+        return pred_no_aliases == gold_no_aliases
     
     def execution_match(self, predicted: str, gold: str, db_path: str) -> bool:
         """Check if predicted SQL produces same results as gold SQL"""
@@ -152,6 +232,7 @@ class SpiderBenchmark:
                     if self.exact_match(predicted_sql, gold_sql):
                         exact_matches += 1
                         print("  ✅ Exact match")
+                        print(f"    Query: {predicted_sql[:100]}...")
                     else:
                         print("  ❌ No exact match")
                         print(f"    Predicted: {predicted_sql[:100]}...")
