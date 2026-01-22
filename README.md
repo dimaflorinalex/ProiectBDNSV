@@ -8,6 +8,12 @@
 
 A complete Text-To-SQL solution using LangChain and Ollama for local LLM execution.
 
+## Demo
+
+[![Watch the demo](https://img.youtube.com/vi/m4i5csOMzmc/maxresdefault.jpg)](https://www.youtube.com/watch?v=m4i5csOMzmc)
+
+*Click the image above to watch the demo video*
+
 ## Features
 
 - **Natural Language to SQL**: Convert natural language questions to SQL queries
